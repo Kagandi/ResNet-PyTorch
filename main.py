@@ -72,11 +72,12 @@ if __name__ == "__main__":
 
     for epoch in tqdm(range(EPOCHS)):
         total_loss = 0.0
+        avg_loss = 0.0
         with tqdm(train_dataloader, unit="batch") as tepoch:
             for i, (inputs, labels) in enumerate(tepoch):
                 tepoch.set_description(f"Epoch {epoch}")
                 tepoch.set_postfix(
-                    train_loss=total_loss / (i + 1),
+                    train_loss=avg_loss,
                     val_loss=np.nan,
                     val_accuracy=np.nan,
                 )
@@ -89,6 +90,8 @@ if __name__ == "__main__":
                 optimizer.step()
 
                 total_loss += loss.item()
+                avg_loss = total_loss / (i + 1)
+
                 if val_dataloader is not None and i == len(train_dataloader) - 1:
                     with torch.no_grad():
                         val_loss = 0.0
@@ -103,7 +106,7 @@ if __name__ == "__main__":
                         val_loss /= len(val_dataloader)
                         val_score /= len(val_dataloader)
                         tepoch.set_postfix(
-                            # train_loss=total_loss / (i + 1),
+                            train_loss=total_loss / (i + 1),
                             val_loss=val_loss,
                             val_accuracy=val_score,
                         )
