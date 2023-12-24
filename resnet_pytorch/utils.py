@@ -13,7 +13,11 @@ from itertools import product
 import matplotlib.pyplot as plt
 
 
-def imshow(img):
+def imshow(img: torch.Tensor):
+    """Show an image.
+    :param img: image to be shown
+    :return: None
+    """
     img = img / 2 + 0.5  # unnormalize
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
@@ -60,7 +64,7 @@ class EarlyStopping(object):
             self.save_checkpoint(val_loss, model)
             self.counter = 0
 
-    def save_checkpoint(self, val_loss, model):
+    def save_checkpoint(self, val_loss:float, model:torch.nn.Module):
         """Saves model when validation loss decrease."""
         if self.verbose:
             print(
@@ -70,7 +74,15 @@ class EarlyStopping(object):
         self.val_loss_min = val_loss
 
 
-def lr_finder(model, criterion, optimizer, train_loader, device) -> float:
+def lr_finder(model:torch.nn.Module, criterion, optimizer, train_loader, device) -> float:
+    """Find optimal learning rate.
+    :param model: model to be trained
+    :param criterion: loss function
+    :param optimizer: optimizer
+    :param train_loader: training data loader
+    :param device: device to use for training
+    :return: optimal learning rate
+    """
     losses = []
     lrs = torch.logspace(-6, 1, 100)
     for inputs, labels in train_loader:
