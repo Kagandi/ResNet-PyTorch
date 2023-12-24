@@ -1,7 +1,7 @@
 from resnet_pytorch.data import CIFAR10Dataset
 from resnet_pytorch import ResNet, ResidualBlock, ResNet9
-from resnet_pytorch.utils import imshow, EarlyStopping
-from resnet_pytorch.models import resnet18
+from resnet_pytorch.utils import imshow, EarlyStopping, lr_finder
+from resnet_pytorch.models import resnet18, resnet_mini
 from resnet_pytorch.augmentaions import Flip, Rotate, Mirror, Contrast, Brightness
 import torch
 from torch import nn
@@ -17,20 +17,23 @@ import time
 import numpy as np
 
 if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using {device}")
     preprocess = transforms.Compose(
         [
             transforms.ToPILImage(),
-            transforms.RandomCrop(32, padding=4),
+            transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
             Flip(),
-            Rotate(),
+            Rotate(min_degrees=0, max_degrees=10),
             Mirror(),
-            Contrast(),
-            Brightness(),
+            # Contrast(),
+            # Brightness(),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2471, 0.2435, 0.2616]),
+            transforms.Normalize(
+                mean=[0.4914, 0.4822, 0.4465], std=[0.2471, 0.2435, 0.2616]
+            ),
         ]
     )
-
 
     transform_test = transforms.Compose(
         [
@@ -48,7 +51,7 @@ if __name__ == "__main__":
         test_size=0.2,
         stratify=cifar10_dataset.labels,
     )
-    BS = 1024
+    BS = 400
     train_dataset = Subset(cifar10_dataset, train_indices)
     val_dataset = Subset(cifar10_dataset, val_indices)
     train_dataloader = torch.utils.data.DataLoader(
@@ -62,23 +65,31 @@ if __name__ == "__main__":
 
     # imshow(train_dataset[0][0])
 
-    # resnet = resnet18(in_channels=16, num_classes=10)
-    resnet =  ResNet9(3, 10)
-    EPOCHS = 10
-    LR = 0.4
+    # resnet = resnet18(in_channels=64, num_classes=10)
+    resnet = resnet_mini(in_channels=64, num_classes=10, stride=1)
+    # resnet =  ResNet9(3, 10).to(device)
+    EPOCHS = 30
+    LR = 0.01
+    wd = 1e-4
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(resnet.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
+    # optimizer = optim.SGD(resnet.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
+    optimizer = torch.optim.Adam(resnet.parameters(), LR, amsgrad=True, weight_decay=wd)
+    lrs, loss = lr_finder(resnet, criterion, optimizer, train_dataloader, device)
+
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer, max_lr=LR, steps_per_epoch=len(train_dataloader), epochs=EPOCHS
     )
-    early_stoping = EarlyStopping(patience=7, verbose=False, path=f"models", delta=0.005)
+    early_stoping = EarlyStopping(
+        patience=7, verbose=False, path=f"models", delta=0.005
+    )
 
     for epoch in tqdm(range(EPOCHS)):
         total_loss = 0.0
         avg_loss = 0.0
         with tqdm(train_dataloader, unit="batch") as tepoch:
             for i, (inputs, labels) in enumerate(tepoch):
+                inputs, labels = inputs.to(device), labels.to(device)
                 tepoch.set_description(f"Epoch {epoch}")
                 tepoch.set_postfix(
                     train_loss=avg_loss,
@@ -101,6 +112,7 @@ if __name__ == "__main__":
                         val_loss = 0.0
                         val_score = 0.0
                         for i, (inputs, labels) in enumerate(val_dataloader):
+                            inputs, labels = inputs.to(device), labels.to(device)
                             outputs = resnet(inputs)
                             loss = criterion(outputs, labels)
                             val_loss += loss.item()
@@ -115,20 +127,19 @@ if __name__ == "__main__":
                             val_accuracy=val_score,
                         )
                         time.sleep(0.5)
-            scheduler.step()
-            early_stoping(val_score, resnet)
+                scheduler.step()
+            early_stoping(val_loss, resnet)
             if early_stoping.early_stop:
                 print("Early stopping")
                 break
     resnet = torch.load(f"models/checkpoint.pt")
-
 
     resnet.eval()
     # PATH = "./cifar_net.pth"
     # torch.save(resnet.state_dict(), PATH)
     cifar10_dataset_test = CIFAR10Dataset(transform_test, train=False)
     cifar10_dataloader_test = torch.utils.data.DataLoader(
-        cifar10_dataset_test, batch_size=32, shuffle=True
+        cifar10_dataset_test, batch_size=32, shuffle=False
     )
     predict = []
     trues = []
@@ -138,6 +149,7 @@ if __name__ == "__main__":
         for i, (inputs, labels) in enumerate(
             tqdm(cifar10_dataloader_test, unit="batch", desc="Test")
         ):
+            inputs, labels = inputs.to(device), labels.to(device)
             trues.append(labels)
             outputs = resnet(inputs)
             predict.append(outputs.argmax(dim=1))
