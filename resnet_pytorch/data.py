@@ -52,7 +52,8 @@ class CIFAR10Dataset(torch.utils.data.Dataset):
         if self.transform:
             x = self.transform(x)
         return x, y
-
+    
+    @property
     def classes(self):
         return (
             "plane",

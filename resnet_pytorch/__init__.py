@@ -1,1 +1,1 @@
-from resnet_pytorch.resnet import ResNet, ResidualBlock
+from resnet_pytorch.resnet import ResNet, ResidualBlock, ResNet9

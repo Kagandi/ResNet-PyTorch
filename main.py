@@ -1,6 +1,6 @@
 from resnet_pytorch.data import CIFAR10Dataset
-from resnet_pytorch import ResNet, ResidualBlock
-from resnet_pytorch.utils import imshow
+from resnet_pytorch import ResNet, ResidualBlock, ResNet9
+from resnet_pytorch.utils import imshow, EarlyStopping
 from resnet_pytorch.models import resnet18
 from resnet_pytorch.augmentaions import Flip, Rotate, Mirror, Contrast, Brightness
 import torch
@@ -27,14 +27,15 @@ if __name__ == "__main__":
             Contrast(),
             Brightness(),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2471, 0.2435, 0.2616]),
         ]
     )
+
 
     transform_test = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616)),
         ]
     )
     cifar10_dataset = CIFAR10Dataset(preprocess)
@@ -47,28 +48,31 @@ if __name__ == "__main__":
         test_size=0.2,
         stratify=cifar10_dataset.labels,
     )
+    BS = 1024
     train_dataset = Subset(cifar10_dataset, train_indices)
     val_dataset = Subset(cifar10_dataset, val_indices)
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=128, shuffle=True
+        train_dataset, batch_size=BS, shuffle=True
     )
     val_dataloader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=128, shuffle=True
+        val_dataset, batch_size=BS, shuffle=True
     )
     # imshow(train_dataset[0][0])
     # imshow(train_dataset[0][0])
 
     # imshow(train_dataset[0][0])
 
-    resnet = resnet18(in_channels=16, num_classes=10)
+    # resnet = resnet18(in_channels=16, num_classes=10)
+    resnet =  ResNet9(3, 10)
     EPOCHS = 10
-
+    LR = 0.4
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(resnet.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+    optimizer = optim.SGD(resnet.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, max_lr=0.1, steps_per_epoch=len(train_dataloader), epochs=EPOCHS
+        optimizer, max_lr=LR, steps_per_epoch=len(train_dataloader), epochs=EPOCHS
     )
+    early_stoping = EarlyStopping(patience=7, verbose=False, path=f"models", delta=0.005)
 
     for epoch in tqdm(range(EPOCHS)):
         total_loss = 0.0
@@ -112,8 +116,16 @@ if __name__ == "__main__":
                         )
                         time.sleep(0.5)
             scheduler.step()
-    PATH = "./cifar_net.pth"
-    torch.save(resnet.state_dict(), PATH)
+            early_stoping(val_score, resnet)
+            if early_stoping.early_stop:
+                print("Early stopping")
+                break
+    resnet = torch.load(f"models/checkpoint.pt")
+
+
+    resnet.eval()
+    # PATH = "./cifar_net.pth"
+    # torch.save(resnet.state_dict(), PATH)
     cifar10_dataset_test = CIFAR10Dataset(transform_test, train=False)
     cifar10_dataloader_test = torch.utils.data.DataLoader(
         cifar10_dataset_test, batch_size=32, shuffle=True
