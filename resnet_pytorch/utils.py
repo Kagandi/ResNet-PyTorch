@@ -70,7 +70,7 @@ class EarlyStopping(object):
         self.val_loss_min = val_loss
 
 
-def lr_finder(model, criterion, optimizer, train_loader, device):
+def lr_finder(model, criterion, optimizer, train_loader, device) -> float:
     losses = []
     lrs = torch.logspace(-6, 1, 100)
     for inputs, labels in train_loader:
@@ -90,7 +90,8 @@ def lr_finder(model, criterion, optimizer, train_loader, device):
     ax.set_xscale("log")
     ax.set_yscale("log")
     plt.show()
-    return lrs, losses
+    return lrs[np.argmin(losses)]
+
 
 
 def denormalize(
