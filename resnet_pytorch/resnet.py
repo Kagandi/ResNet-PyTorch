@@ -45,6 +45,7 @@ class ResNet(nn.Module):
         layers: list,
         in_channels: int = 64,
         num_classes: int = 10,
+        stride: int = 2,
     ):
         """ResNet model.
         :param block: residual block to be used
@@ -60,18 +61,20 @@ class ResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         # self.layer1 = self.make_layer(block, in_channels, layers[0])
         self.layers = [self.make_layer(block, in_channels, layers[0])] + [
-            self.make_layer(block, in_channels * 2 ** i, layers[i], 2)
+            self.make_layer(block, in_channels * 2 ** i, layers[i], stride)
             for i in range(1, len(layers))
         ]
         # self.layer2 = self.make_layer(block, in_channels * 2, layers[1], 2)
         # self.layer3 = self.make_layer(block, in_channels * 4, layers[2], 2)
         # self.layer4 = self.make_layer(block, in_channels * 8, layers[3], 2)
+        
         self.fwd = nn.Sequential(
             *self.layers,
         )
-        self.avg_pool = nn.AvgPool2d((1, 1))
+
+        self.avg_pool = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten())
         self.fc = nn.Linear(
-            in_channels * 2 * len(layers) * block.expansion, num_classes
+            in_channels * (2 ** (len(layers)-1)) * block.expansion, num_classes
         )
 
     def make_layer(
@@ -116,7 +119,7 @@ class ResNet(nn.Module):
         # x = self.layer4(x)
         x = self.fwd(x)
         x = self.avg_pool(x)
-        x = torch.flatten(x, 1)
+        # x = torch.flatten(x, 1)
 
         x = self.fc(x)
         return x
