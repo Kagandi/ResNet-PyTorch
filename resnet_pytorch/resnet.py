@@ -3,8 +3,6 @@ from torch import nn
 
 
 class ResidualBlock(nn.Module):
-    expansion: int = 1
-
     def __init__(
         self, in_channels: int, out_channels: int, stride: int = 1, downsample=None
     ):
@@ -59,23 +57,18 @@ class ResNet(nn.Module):
         self.max_pool = nn.MaxPool2d(3, stride=2, padding=1)
         self.bn = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        # self.layer1 = self.make_layer(block, in_channels, layers[0])
+
         self.layers = [self.make_layer(block, in_channels, layers[0])] + [
-            self.make_layer(block, in_channels * 2 ** i, layers[i], stride)
+            self.make_layer(block, in_channels * 2**i, layers[i], stride)
             for i in range(1, len(layers))
         ]
-        # self.layer2 = self.make_layer(block, in_channels * 2, layers[1], 2)
-        # self.layer3 = self.make_layer(block, in_channels * 4, layers[2], 2)
-        # self.layer4 = self.make_layer(block, in_channels * 8, layers[3], 2)
-        
+
         self.fwd = nn.Sequential(
             *self.layers,
         )
 
         self.avg_pool = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten())
-        self.fc = nn.Linear(
-            in_channels * (2 ** (len(layers)-1)) * block.expansion, num_classes
-        )
+        self.fc = nn.Linear(in_channels * (2 ** (len(layers) - 1)), num_classes)
 
     def make_layer(
         self, block: nn.Module, out_channels: int, blocks: list, stride: int = 1
@@ -113,43 +106,58 @@ class ResNet(nn.Module):
         :return: output of the ResNet model
         """
         x = self.max_pool(self.relu(self.bn(self.conv(x))))
-        # x = self.layer1(x)
-        # x = self.layer2(x)
-        # x = self.layer3(x)
-        # x = self.layer4(x)
         x = self.fwd(x)
         x = self.avg_pool(x)
-        # x = torch.flatten(x, 1)
 
         x = self.fc(x)
         return x
 
 
-def conv_block(in_channels, out_channels, pool=False):
-    layers = [nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1), 
-              nn.BatchNorm2d(out_channels), 
-              nn.ReLU(inplace=True)]
-    if pool: layers.append(nn.MaxPool2d(2))
+def conv_block(in_channels: int, out_channels: int, pool=False) -> nn.Sequential:
+    """Convolutional block of two convolutional layers followed by a max pooling layer.
+    :param in_channels: number of input channels
+    :param out_channels: number of output channels
+    :param pool: whether to apply max pooling or not
+    :return: convolutional block
+    """
+    layers = [
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+        nn.BatchNorm2d(out_channels),
+        nn.ReLU(inplace=True),
+    ]
+    if pool:
+        layers.append(nn.MaxPool2d(2))
     return nn.Sequential(*layers)
 
+
 class ResNet9(nn.Module):
-    def __init__(self, in_channels:int=64, num_classes:int=10):
+    def __init__(self, in_channels: int = 64, num_classes: int = 10):
+        """ResNet9 model.
+        :param in_channels: number of input channels
+        :param num_classes: number of output classes
+        """
         super().__init__()
-        
+
         self.conv1 = conv_block(in_channels, 64)
         self.conv2 = conv_block(64, 128, pool=True)
         self.res1 = nn.Sequential(conv_block(128, 128), conv_block(128, 128))
-        
+
         self.conv3 = conv_block(128, 256, pool=True)
         self.conv4 = conv_block(256, 512, pool=True)
         self.res2 = nn.Sequential(conv_block(512, 512), conv_block(512, 512))
-        
-        self.classifier = nn.Sequential(nn.AdaptiveMaxPool2d((1,1)), 
-                                        nn.Flatten(), 
-                                        nn.Dropout(0.2),
-                                        nn.Linear(512, num_classes))
-        
+
+        self.classifier = nn.Sequential(
+            nn.AdaptiveMaxPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Dropout(0.2),
+            nn.Linear(512, num_classes),
+        )
+
     def forward(self, xb):
+        """Forward pass of the ResNet9 model.
+        :param xb: input to the ResNet9 model
+        :return: output of the ResNet9 model
+        """
         out = self.conv1(xb)
         out = self.conv2(out)
         out = self.res1(out) + out

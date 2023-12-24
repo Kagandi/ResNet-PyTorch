@@ -60,14 +60,10 @@ if __name__ == "__main__":
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=BS, shuffle=True
     )
-    # imshow(train_dataset[0][0])
-    # imshow(train_dataset[0][0])
-
-    # imshow(train_dataset[0][0])
 
     # resnet = resnet18(in_channels=64, num_classes=10)
-    resnet = resnet_mini(in_channels=64, num_classes=10, stride=1)
-    # resnet =  ResNet9(3, 10).to(device)
+    # resnet = resnet_mini(in_channels=64, num_classes=10, stride=1)
+    resnet =  ResNet9(3, 10).to(device)
     EPOCHS = 30
     LR = 0.01
     wd = 1e-4

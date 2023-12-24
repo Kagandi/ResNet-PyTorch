@@ -70,16 +70,15 @@ class EarlyStopping(object):
         self.val_loss_min = val_loss
 
 
-# @torch.no_grad()
 def lr_finder(model, criterion, optimizer, train_loader, device):
     losses = []
-    lrs = torch.logspace(-7, 1, 100)
+    lrs = torch.logspace(-6, 1, 100)
     for inputs, labels in train_loader:
         inputs = inputs.to(device)
         labels = labels.to(device)
         break
     for lr in tqdm(lrs):
-        optimizer.lr = lr
+        optimizer.param_groups[0]['lr']
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, labels)
@@ -89,17 +88,35 @@ def lr_finder(model, criterion, optimizer, train_loader, device):
     fig, ax = plt.subplots(1, 1)
     ax.plot(lrs.numpy(), losses)
     ax.set_xscale("log")
+    ax.set_yscale("log")
     plt.show()
     return lrs, losses
 
 
-def denormalize(images, means, stds):
+def denormalize(
+    images: torch.Tensor, means: list[float], stds: list[float]
+) -> torch.Tensor:
+    """Denormalize images.
+    :param images: images to be denormalized
+    :param means: means used for normalization
+    :param stds: standard deviations used for normalization
+    :return: denormalized images
+    """
     means = torch.tensor(means).reshape(3, 1, 1)
     stds = torch.tensor(stds).reshape(3, 1, 1)
     return images * stds + means
 
 
-def show_predictions(predictions, labels, images, classes):
+def show_predictions(
+    predictions: np.array, labels: np.array, images: torch.Tensor, classes: list[str]
+) -> None:
+    """Show predictions vs true labels.
+    :param predictions: predictions
+    :param labels: true labels
+    :param images: images
+    :param classes: list of classes
+    :return: None
+    """
     idx2lable = classes
 
     fig, axs = plt.subplots(ncols=5, nrows=5, squeeze=False, figsize=(10, 10))
