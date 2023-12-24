@@ -4,6 +4,11 @@ The example is execute over the CIFAR-10 dataset.
 
 Installation instraction:
 ```console
-$ poetry install
+$ pip install -e .
 $ python -m main.py
+```
+
+Dev instraction:
+```console
+$ poetry install
 ```
