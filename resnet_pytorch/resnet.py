@@ -40,7 +40,11 @@ class ResidualBlock(nn.Module):
 
 class ResNet(nn.Module):
     def __init__(
-        self, block: nn.Module, in_channels: int, layers: list, num_classes: int = 10
+        self,
+        block: nn.Module,
+        layers: list,
+        in_channels: int = 64,
+        num_classes: int = 10,
     ):
         """ResNet model.
         :param block: residual block to be used
@@ -54,12 +58,12 @@ class ResNet(nn.Module):
         self.max_pool = nn.MaxPool2d(3, stride=2, padding=1)
         self.bn = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self.make_layer(block, 64, layers[0])
-        self.layer2 = self.make_layer(block, 128, layers[1], 2)
-        self.layer3 = self.make_layer(block, 256, layers[2], 2)
-        self.layer4 = self.make_layer(block, 512, layers[3], 2)
+        self.layer1 = self.make_layer(block, in_channels, layers[0])
+        self.layer2 = self.make_layer(block, in_channels * 2, layers[1], 2)
+        self.layer3 = self.make_layer(block, in_channels * 4, layers[2], 2)
+        self.layer4 = self.make_layer(block, in_channels * 8, layers[3], 2)
         self.avg_pool = nn.AvgPool2d((1, 1))
-        self.fc = nn.Linear(512*block.expansion, num_classes)
+        self.fc = nn.Linear(in_channels * 8 * block.expansion, num_classes)
 
     def make_layer(
         self, block: nn.Module, out_channels: int, blocks: list, stride: int = 1

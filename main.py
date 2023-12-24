@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     # imshow(train_dataset[0][0])
 
-    resnet = resnet18(in_channels=64, num_classes=10)
+    resnet = resnet18(in_channels=16, num_classes=10)
     EPOCHS = 10
 
     criterion = nn.CrossEntropyLoss()
@@ -106,7 +106,7 @@ if __name__ == "__main__":
                         val_loss /= len(val_dataloader)
                         val_score /= len(val_dataloader)
                         tepoch.set_postfix(
-                            train_loss=total_loss / (i + 1),
+                            train_loss=avg_loss,
                             val_loss=val_loss,
                             val_accuracy=val_score,
                         )
