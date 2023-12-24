@@ -5,6 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from pathlib import Path
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+from torchvision.utils import make_grid
+import torchvision.transforms.functional as F
+from itertools import product
+import matplotlib.pyplot as plt
 
 
 def imshow(img):
@@ -62,3 +68,52 @@ class EarlyStopping(object):
             )
         torch.save(model, f"{self.path}/checkpoint.pt")
         self.val_loss_min = val_loss
+
+
+# @torch.no_grad()
+def lr_finder(model, criterion, optimizer, train_loader, device):
+    losses = []
+    lrs = torch.logspace(-7, 1, 100)
+    for inputs, labels in train_loader:
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+        break
+    for lr in tqdm(lrs):
+        optimizer.lr = lr
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        losses.append(loss.item())
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(lrs.numpy(), losses)
+    ax.set_xscale("log")
+    plt.show()
+    return lrs, losses
+
+
+def denormalize(images, means, stds):
+    means = torch.tensor(means).reshape(1, 3, 1, 1)
+    stds = torch.tensor(stds).reshape(1, 3, 1, 1)
+    return images * stds + means
+
+
+def show_predictions(predictions, labels, images, classes):
+    idx2lable = classes
+
+    fig, axs = plt.subplots(ncols=5, nrows=5, squeeze=False, figsize=(10, 10))
+    grid_idx = list(product(range(5), repeat=2))
+    for i, img in enumerate(images):
+        x, y = grid_idx[i]
+        img = img.detach()
+        img = F.to_pil_image(img)
+        axs[x, y].imshow(np.asarray(img))
+        axs[x, y].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
+        axs[x, y].set_title(
+            f"{idx2lable[predictions[i]]} - {idx2lable[labels[i]]}", color="red"
+        )
+
+    fig.suptitle("Predictions vs True Label")
+
+    plt.show()
