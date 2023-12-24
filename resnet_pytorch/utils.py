@@ -94,8 +94,8 @@ def lr_finder(model, criterion, optimizer, train_loader, device):
 
 
 def denormalize(images, means, stds):
-    means = torch.tensor(means).reshape(1, 3, 1, 1)
-    stds = torch.tensor(stds).reshape(1, 3, 1, 1)
+    means = torch.tensor(means).reshape(3, 1, 1)
+    stds = torch.tensor(stds).reshape(3, 1, 1)
     return images * stds + means
 
 
